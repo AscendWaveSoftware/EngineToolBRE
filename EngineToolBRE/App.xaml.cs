@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System;
+using System.Windows;
 using EngineToolBRE.ViewModels;
 
 namespace EngineToolBRE
@@ -13,7 +14,7 @@ namespace EngineToolBRE
             base.OnStartup(e);
             var wnd = new MainWindow
             {
-                DataContext = new MainWindow()
+                DataContext = new MainViewModel()
             };
             wnd.Show();
         }

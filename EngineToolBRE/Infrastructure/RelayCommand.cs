@@ -3,7 +3,7 @@ using System.Windows.Input;
 
 namespace EngineToolBRE.Infrastructure
 {
-    public sealed class RelayCommand
+    public sealed class RelayCommand : ICommand
     {
         private readonly Action execute;
         private readonly Func<bool> canExecute;
@@ -18,5 +18,6 @@ namespace EngineToolBRE.Infrastructure
         public void Execute(object _parameter) => execute();
 
         public event EventHandler CanExecuteChanged;
+        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }
