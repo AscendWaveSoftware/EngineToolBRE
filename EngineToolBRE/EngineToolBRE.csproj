@@ -61,6 +61,8 @@
     <Compile Include="Models\EmptyProjectTemplate.cs" />
     <Compile Include="Models\TemplateBase.cs" />
     <Compile Include="Models\UnityInstallation.cs" />
+    <Compile Include="Models\Urp2DTemplate.cs" />
+    <Compile Include="Models\Urp3DTemplate.cs" />
     <Compile Include="Services\ProjectCreator.cs" />
     <Compile Include="Services\UnityScanner.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />

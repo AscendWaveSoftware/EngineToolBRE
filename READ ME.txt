@@ -1,0 +1,3 @@
+Für die Templates wurde sowohl eine Version- als auch eine Manifest-Datei hinzugefügt um die Unity-Version im Hub erkennbar zu machen. Es wurden einige Fehler in den initialen Template-Scripts gefixt.
+
+Nun müssen die Templates optimiert werden (schnelleres Laden bzw. kompilieren der Setup Scripts, Render Pipeline Bug fixen der Global Volume blockiert, nur einmaliges kompilieren der Setup Scripts)

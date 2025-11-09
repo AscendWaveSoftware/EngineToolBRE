@@ -40,6 +40,8 @@ namespace EngineToolBRE.ViewModels
         {
             // Templates registrieren
             Templates.Add(new EmptyProjectTemplate());
+            Templates.Add(new Urp3DTemplate());
+            Templates.Add(new Urp2DTemplate());
             //TODO: Weitere Templates hier einfügen
 
             RescanCommand = new RelayCommand(Rescan);
@@ -84,7 +86,7 @@ namespace EngineToolBRE.ViewModels
         {
             try
             {
-                Append("Starte Erstellung …");
+                Append("Starte Erstellung…");
                 await ProjectCreator.CreateProjectAsync(TargetDirectory, ProjectName, SelectedUnity, SelectedTemplate, Append);
                 Append("Fertig. Du kannst das Projekt nun in Unity öffnen.");
             }

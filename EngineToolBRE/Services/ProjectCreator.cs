@@ -23,6 +23,8 @@ namespace EngineToolBRE.Services
             if (!Directory.Exists(assets))
                 Directory.CreateDirectory(assets);
 
+            EnsureUnityProjectMetadata(projectRoot, _unity.Version, _log);
+
             _log($"Projektordner erstellt {projectRoot}");
 
             await _template.RunAsync(projectRoot, _unity, _log);
@@ -30,6 +32,30 @@ namespace EngineToolBRE.Services
             _log("Projektstruktur erstellt.");
 
             await LaunchUnityOnceAsync(_unity.EditorPath, projectRoot, _log);
+        }
+
+        private static void EnsureUnityProjectMetadata(string _projectRoot, string _editorVersion, Action<string> _log)
+        {
+            var projectSettingsDir = Path.Combine(_projectRoot, "ProjectSettings");
+            var packagesDir = Path.Combine(_projectRoot, "Packages");
+            if (!Directory.Exists(projectSettingsDir)) Directory.CreateDirectory(projectSettingsDir);
+            if (!Directory.Exists(packagesDir)) Directory.CreateDirectory(packagesDir);
+
+            var versionTxt = Path.Combine(projectSettingsDir, "ProjectVersion.txt");
+            if (!File.Exists(versionTxt))
+            {
+                var content = $"m_EditorVersion: {_editorVersion}\n";
+                File.WriteAllText(versionTxt ,content);
+                _log($"ProjectVersion.txt geschrieben: {_editorVersion}");
+            }
+
+            var manifestPath = Path.Combine(packagesDir, "manifest.json");
+            if (!File.Exists(manifestPath))
+            {
+                var manifest = "{\n  \"dependencies\": {}\n}\n";
+                File.WriteAllText(manifestPath, manifest);
+                _log("Leeres Packages/manifest.json angelegt.");
+            }
         }
 
         private static Task LaunchUnityOnceAsync(string _unityExe, string _projectPath, Action<string> _log)
