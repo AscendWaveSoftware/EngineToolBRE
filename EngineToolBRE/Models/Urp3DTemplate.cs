@@ -7,7 +7,7 @@ namespace EngineToolBRE.Models
     public sealed class Urp3DTemplate : TemplateBase
     {
         public Urp3DTemplate() : base(
-            "URP 3D",
+            "URP 3D (Empty)",
             "Installiert die URP, setzt 3D-Default, erzeugt URP-Asset und Startszene automatisch beim ersten Editor-Start."
         ) { }
 
