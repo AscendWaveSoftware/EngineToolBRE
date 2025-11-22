@@ -14,7 +14,7 @@ namespace EngineToolBRE.Models
         public override Task RunAsync(string _targetPath, UnityInstallation _unity, Action<string> _log)
         {
             var assets = Path.Combine(_targetPath, "Assets");
-            var editor = Path.Combine(_targetPath, "Editor");
+            var editor = Path.Combine(assets, "Editor");
             var scripts = Path.Combine(assets, "Scripts");
             Directory.CreateDirectory(assets);
             Directory.CreateDirectory(editor);
@@ -23,14 +23,13 @@ namespace EngineToolBRE.Models
             File.WriteAllText(Path.Combine(scripts, "Gun.cs"), RUNTIME_GUN);
             File.WriteAllText(Path.Combine(scripts, "Health.cs"), RUNTIME_HEALTH);
 
-            File.WriteAllText(Path.Combine(editor, "BRE_AutoFpsSetup.cs"), EDITOR_AUTO_FPS_SETUP);
+            File.WriteAllText(Path.Combine(editor, "BRE_AutoFpsSetup.cs"), EDITOR_AUTO_SETUP_FPS);
 
             _log("FPS-Template Datein geschrieben. Beim ersten Editor-Start wird die Szene automatisch erzeugt.");
             return Task.CompletedTask;
         }
 
-        private const string RUNTIME_GUN = @"
-            using UnityEngine;
+        private const string RUNTIME_GUN = @"using UnityEngine;
 
 public class Gun : MonoBehaviour
 {
@@ -45,30 +44,51 @@ public class Gun : MonoBehaviour
 
     private void Reset()
     {
-        shootOrigin = Camera.main ? Camera.main.transform : transform;
+        if (!shootOrigin && Camera.main)
+            shootOrigin = Camera.main.transform;
     }
 
     public void TryFire()
     {
-        if (Time.time < _nextFireTime) return;
+        if (Time.time < _nextFireTime) 
+            return;
+
         _nextFireTime = Time.time + fireCooldown;
         Fire();
     }
 
     private void Fire()
     {
-        if (!shootOrigin) shootOrigin = transform;
+        if (!shootOrigin)
+            shootOrigin = transform;
 
-        if (Physics.Raycast(shootOrigin.position, shootOrigin.forward, out var hit, range, hitMask, QueryTriggerInteraction.Ignore))
+        // Raycast mit voll qualifizierten Typen
+        if (UnityEngine.Physics.Raycast(
+                shootOrigin.position,
+                shootOrigin.forward,
+                out UnityEngine.RaycastHit hit,
+                range,
+                hitMask,
+                UnityEngine.QueryTriggerInteraction.Ignore))
         {
             // Health suchen und Schaden zufügen
             var h = hit.collider.GetComponentInParent<Health>();
-            if (h) h.ApplyDamage(damage);
+            if (h != null)
+            {
+                h.ApplyDamage(damage);
+            }
 
-            // kleiner Einschlag-Impuls
-            if (hit.rigidbody) hit.rigidbody.AddForceAtPosition(shootOrigin.forward * 2f, hit.point, ForceMode.Impulse);
+            // einfacher Rückstoß, wenn ein Rigidbody vorhanden ist
+            var rb = hit.rigidbody;
+            if (rb != null)
+            {
+                rb.AddForceAtPosition(
+                    shootOrigin.forward * 2f,
+                    hit.point,
+                    UnityEngine.ForceMode.Impulse);
+            }
 
-            // einfacher Debug-Impact
+            // Trefferlinie im Scene-View
             Debug.DrawLine(shootOrigin.position, hit.point, Color.yellow, 0.2f);
         }
 
@@ -76,7 +96,7 @@ public class Gun : MonoBehaviour
         Debug.DrawRay(shootOrigin.position, shootOrigin.forward * 0.6f, Color.cyan, 0.05f);
     }
 }
-        ";
+";
 
         private const string RUNTIME_HEALTH = @"
             using UnityEngine;
@@ -120,8 +140,7 @@ public class Health : MonoBehaviour
 }
         ";
 
-        private const string EDITOR_AUTO_FPS_SETUP = @"
-            using System;
+        private const string EDITOR_AUTO_SETUP_FPS = @"using System;
 using System.IO;
 using UnityEditor;
 using UnityEditor.PackageManager;
@@ -133,46 +152,75 @@ using UnityEngine.SceneManagement;
 public static class BRE_AutoFpsSetup
 {
     private const string FileGuardPath = ""ProjectSettings/BRE_FPS_DONE.flag"";
+    private const string ScenePath     = ""Assets/Scenes/Main_FPS.unity"";
+
     private static AddRequest _addInputSystem;
 
     [InitializeOnLoadMethod]
     private static void Init()
     {
-        if (File.Exists(FileGuardPath)) return;
+        // Wird bei jedem erfolgreichen Domain-Reload aufgerufen (sofern nicht im Safe Mode)
+        Debug.Log(""[BRE FPS] Init domain reload …"");
 
-        // Input System sicherstellen
-        if (!ManifestHas(""com.unity.inputsystem""))
+        // Wenn Guard + Szene da sind -> nichts mehr tun
+        if (File.Exists(FileGuardPath) && File.Exists(ScenePath))
         {
-            _addInputSystem = Client.Add(""com.unity.inputsystem"");
-            EditorApplication.update += WaitForInputInstall;
+            Debug.Log(""[BRE FPS] Guard + Scene present, auto-setup skipped."");
+            return;
         }
-        else
-        {
-            EditorApplication.delayCall += CreateSceneAndPlayer;
-        }
+
+        // Ansonsten Setup versuchen
+        EnsureInputSystemThenSetup();
     }
 
-    [MenuItem(""BRE/FPS/Run Setup Now"")]
-    private static void MenuRunNow()
+    [MenuItem(""BRE/FPS/Run Setup Now (Force)"")]
+    private static void MenuRunNowForce()
     {
-        if (File.Exists(FileGuardPath)) File.Delete(FileGuardPath);
-        EditorApplication.delayCall += CreateSceneAndPlayer;
+        Debug.Log(""[BRE FPS] Manual menu trigger (force)."");
+
+        // Guard zurücksetzen, damit wir garantiert laufen
+        if (File.Exists(FileGuardPath))
+            File.Delete(FileGuardPath);
+
+        EnsureInputSystemThenSetup();
+    }
+
+    private static void EnsureInputSystemThenSetup()
+    {
+        // Wenn Input System schon drin ist, direkt Szene/Player anlegen
+        if (ManifestHas(""com.unity.inputsystem""))
+        {
+            Debug.Log(""[BRE FPS] Input System already present. Creating scene/player …"");
+            EditorApplication.delayCall += CreateSceneAndPlayer;
+            return;
+        }
+
+        Debug.Log(""[BRE FPS] Input System not in manifest. Installing via UPM …"");
+        _addInputSystem = Client.Add(""com.unity.inputsystem"");
+        EditorApplication.update += WaitForInputInstall;
     }
 
     private static void WaitForInputInstall()
     {
-        if (_addInputSystem == null) { EditorApplication.update -= WaitForInputInstall; return; }
-        if (!_addInputSystem.IsCompleted) return;
+        if (_addInputSystem == null)
+        {
+            EditorApplication.update -= WaitForInputInstall;
+            Debug.LogWarning(""[BRE FPS] WaitForInputInstall: no request."");
+            return;
+        }
+
+        if (!_addInputSystem.IsCompleted)
+            return;
 
         EditorApplication.update -= WaitForInputInstall;
 
         if (_addInputSystem.Status == StatusCode.Failure)
         {
-            Debug.LogError(""[BRE] Input System Installation failed: "" + _addInputSystem.Error.message);
+            Debug.LogError(""[BRE FPS] Input System installation failed: "" + _addInputSystem.Error.message);
             return;
         }
 
-        // Nach Installation Domain-Reload → danach Assets anlegen
+        Debug.Log(""[BRE FPS] Input System installed. Creating scene/player …"");
         EditorApplication.delayCall += CreateSceneAndPlayer;
     }
 
@@ -180,7 +228,8 @@ public static class BRE_AutoFpsSetup
     {
         var manifest = ""Packages/manifest.json"";
         if (!File.Exists(manifest)) return false;
-        return File.ReadAllText(manifest).IndexOf(packageName, StringComparison.OrdinalIgnoreCase) >= 0;
+        return File.ReadAllText(manifest)
+                   .IndexOf(packageName, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static void CreateSceneAndPlayer()
@@ -191,13 +240,14 @@ public static class BRE_AutoFpsSetup
             Directory.CreateDirectory(""Assets/Input"");
             Directory.CreateDirectory(""Assets/Settings"");
 
-            // 1) Input Actions erzeugen
-            var actions = CreateInputActionsAsset(""Assets/Input/PlayerInputActions.inputactions"");
+            // 1) Input Actions erzeugen (idempotent)
+            var actions = CreateInputActionsAsset(""Assets/Input/PlayerInputActions.asset"");
 
             // 2) Scene erstellen (falls nicht vorhanden)
-            var scenePath = ""Assets/Scenes/Main_FPS.unity"";
-            if (!File.Exists(scenePath))
+            if (!File.Exists(ScenePath))
             {
+                Debug.Log(""[BRE FPS] Creating scene + player …"");
+
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
                 // Boden
@@ -211,7 +261,11 @@ public static class BRE_AutoFpsSetup
                 {
                     var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     box.name = ""Target_"" + i;
-                    box.transform.position = new Vector3(UnityEngine.Random.Range(-12f, 12f), 0.5f, UnityEngine.Random.Range(6f, 18f));
+                    box.transform.position = new Vector3(
+                        UnityEngine.Random.Range(-12f, 12f),
+                        0.5f,
+                        UnityEngine.Random.Range(6f, 18f));
+
                     var rb = box.AddComponent<Rigidbody>();
                     rb.mass = 2f;
                     box.AddComponent<Health>();
@@ -222,105 +276,97 @@ public static class BRE_AutoFpsSetup
                 var col = player.AddComponent<CapsuleCollider>();
                 col.height = 1.8f;
                 col.center = new Vector3(0, 0.9f, 0);
+
                 var rbp = player.AddComponent<Rigidbody>();
                 rbp.constraints = RigidbodyConstraints.FreezeRotation;
 
                 // dein PlayerController
-                var pc = player.AddComponent<PlayerController>();
+                //player.AddComponent<PlayerController>();
 
                 // Kamera als Child
                 var camGO = new GameObject(""Main Camera"");
                 camGO.tag = ""MainCamera"";
                 camGO.transform.SetParent(player.transform, false);
                 camGO.transform.localPosition = new Vector3(0, 0.9f, 0f);
+
                 var cam = camGO.AddComponent<Camera>();
                 cam.fieldOfView = 75f;
                 camGO.AddComponent<AudioListener>();
 
                 // Gun an Kamera
-                var gun = camGO.AddComponent<Gun>();
+                camGO.AddComponent<Gun>();
 
                 // PlayerInput (Input System)
                 var playerInputType = Type.GetType(""UnityEngine.InputSystem.PlayerInput, Unity.InputSystem"");
                 if (playerInputType != null)
                 {
-                    var pi = camGO.AddComponent(playerInputType); // an Kamera, geht auch am Player
-                    // actions zuweisen
+                    var pi = camGO.AddComponent(playerInputType);
+
                     var field = playerInputType.GetProperty(""actions"");
-                    var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(""Assets/Input/PlayerInputActions.inputactions"");
+                    var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                        ""Assets/Input/PlayerInputActions.asset"");
                     field?.SetValue(pi, asset, null);
 
-                    // Default Map
                     var defMap = playerInputType.GetProperty(""defaultActionMap"");
                     defMap?.SetValue(pi, ""Player"", null);
-
-                    // Events-Verbindung: Schuss mit LeftClick
-                    var onActionTriggeredEvt = playerInputType.GetEvent(""onActionTriggered"");
-                    if (onActionTriggeredEvt != null)
-                    {
-                        System.Action<object> handler = (ctx) =>
-                        {
-                            // nichts – Event-Bridge geht zur Runtime nicht direkt via Reflection
-                        };
-                    }
                 }
 
                 // Player-Startposition
                 player.transform.position = new Vector3(0, 1.1f, -6f);
 
-                // Save scene
-                EditorSceneManager.SaveScene(SceneManager.GetActiveScene(), scenePath);
+                // Szene speichern
+                EditorSceneManager.SaveScene(SceneManager.GetActiveScene(), ScenePath);
+            }
+            else
+            {
+                Debug.Log(""[BRE FPS] Scene already exists, skipping creation."");
             }
 
+            // Guard schreiben
+            Directory.CreateDirectory(""ProjectSettings"");
             File.WriteAllText(FileGuardPath, ""done"");
+
             AssetDatabase.Refresh();
-            Debug.Log(""[BRE] FPS setup finished. Scene 'Main_FPS' created."");
+            Debug.Log(""[BRE FPS] Setup finished. Scene 'Main_FPS' ready."");
         }
         catch (Exception ex)
         {
-            Debug.LogError(""[BRE] FPS setup failed: "" + ex);
+            Debug.LogError(""[BRE FPS] Setup failed: "" + ex);
         }
     }
 
     // Erzeugt ein InputActionAsset mit: Move (WASD), Look (Mouse), Jump (Space), Fire (LeftMouse)
     private static UnityEngine.Object CreateInputActionsAsset(string path)
     {
-#if ENABLE_INPUT_SYSTEM
-        var asset = new UnityEngine.InputSystem.InputActionAsset();
+        #if ENABLE_INPUT_SYSTEM
+    // Wir erzeugen ein leeres InputActionAsset als normales .asset
+    var asset = ScriptableObject.CreateInstance<UnityEngine.InputSystem.InputActionAsset>();
 
-        var map = new UnityEngine.InputSystem.InputActionMap(""Player"");
-        var aMove = map.AddAction(""Move"", UnityEngine.InputSystem.InputActionType.Value, ""<Gamepad>/leftStick"");
-        aMove.AddCompositeBinding(""2DVector"")
-            .With(""Up"", ""<Keyboard>/w"")
-            .With(""Down"", ""<Keyboard>/s"")
-            .With(""Left"", ""<Keyboard>/a"")
-            .With(""Right"", ""<Keyboard>/d"");
+    var dir = Path.GetDirectoryName(path);
+    if (!Directory.Exists(dir))
+        Directory.CreateDirectory(dir);
 
-        var aLook = map.AddAction(""Look"", UnityEngine.InputSystem.InputActionType.Value);
-        aLook.AddBinding(""<Mouse>/delta"");
+    // Falls es schon existiert, einfach laden und zurückgeben
+    var existing = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path);
+    if (existing != null)
+        return existing;
 
-        var aJump = map.AddAction(""Jump"", UnityEngine.InputSystem.InputActionType.Button, ""<Keyboard>/space"");
-
-        var aFire = map.AddAction(""Fire"", UnityEngine.InputSystem.InputActionType.Button, ""<Mouse>/leftButton"");
-
-        asset.AddActionMap(map);
-
-        if (!Directory.Exists(Path.GetDirectoryName(path))) Directory.CreateDirectory(Path.GetDirectoryName(path));
-        UnityEditor.AssetDatabase.CreateAsset(asset, path);
-        UnityEditor.AssetDatabase.SaveAssets();
-        UnityEditor.AssetDatabase.Refresh();
-        return asset;
+    UnityEditor.AssetDatabase.CreateAsset(asset, path);
+    UnityEditor.AssetDatabase.SaveAssets();
+    UnityEditor.AssetDatabase.Refresh();
+    return asset;
 #else
-        // Falls das ScriptingDefine noch nicht aktiv ist, erzeugen wir leeres Asset
-        var obj = ScriptableObject.CreateInstance<ScriptableObject>();
-        if (!Directory.Exists(Path.GetDirectoryName(path))) Directory.CreateDirectory(Path.GetDirectoryName(path));
-        UnityEditor.AssetDatabase.CreateAsset(obj, path);
-        UnityEditor.AssetDatabase.SaveAssets();
-        UnityEditor.AssetDatabase.Refresh();
-        return obj;
+    // Fallback, falls das neue Input System nicht aktiv ist
+    var obj = ScriptableObject.CreateInstance<ScriptableObject>();
+    var dir = Path.GetDirectoryName(path);
+    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+    UnityEditor.AssetDatabase.CreateAsset(obj, path);
+    UnityEditor.AssetDatabase.SaveAssets();
+    UnityEditor.AssetDatabase.Refresh();
+    return obj;
 #endif
     }
 }
-        ";
+";
     }
 }
