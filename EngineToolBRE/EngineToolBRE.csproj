@@ -59,6 +59,7 @@
     <Compile Include="Infrastructure\RelayCommand.cs" />
     <Compile Include="Infrastructure\DialogService.cs" />
     <Compile Include="Models\EmptyProjectTemplate.cs" />
+    <Compile Include="Models\FirstPersonShooterTemplate.cs" />
     <Compile Include="Models\TemplateBase.cs" />
     <Compile Include="Models\UnityInstallation.cs" />
     <Compile Include="Models\Urp2DTemplate.cs" />

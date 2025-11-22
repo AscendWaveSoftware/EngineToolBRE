@@ -1,13 +1,12 @@
-﻿using System;
+﻿using EngineToolBRE.Infrastructure;
+using EngineToolBRE.Models;
+using EngineToolBRE.Services;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
-using EngineToolBRE.Infrastructure;
-using EngineToolBRE.Models;
-using EngineToolBRE.Services;
 
 namespace EngineToolBRE.ViewModels
 {
@@ -42,6 +41,7 @@ namespace EngineToolBRE.ViewModels
             Templates.Add(new EmptyProjectTemplate());
             Templates.Add(new Urp3DTemplate());
             Templates.Add(new Urp2DTemplate());
+            Templates.Add(new FirstPersonShooterTemplate());
             //TODO: Weitere Templates hier einfügen
 
             RescanCommand = new RelayCommand(Rescan);

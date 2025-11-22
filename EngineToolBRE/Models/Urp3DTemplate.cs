@@ -15,16 +15,26 @@ namespace EngineToolBRE.Models
         {
             var assets = Path.Combine(_targetPath, "Assets");
             var scripts = Path.Combine(assets, "Scripts");
+            var prefabs = Path.Combine(assets, "Prefabs");
             var materials = Path.Combine(assets, "Materials");
+            var textures = Path.Combine(assets, "Textures");
+            var resources = Path.Combine(assets, "Resources");
+            var sounds = Path.Combine(assets, "Sounds");
+            var animators = Path.Combine(assets, "Animators");
             var scenes = Path.Combine(assets, "Scenes");
             var editor = Path.Combine(assets, "Editor");
             var settings = Path.Combine(assets, "Settings");
 
             EnsureDir(assets);
             EnsureDir(scripts);
+            EnsureDir(prefabs);
             EnsureDir(scenes);
             EnsureDir(editor);
             EnsureDir(materials);
+            EnsureDir(textures);
+            EnsureDir(sounds);
+            EnsureDir(resources);
+            EnsureDir(animators);
             EnsureDir(settings);
 
             var autoSetup = Path.Combine(editor, "BRE_AutoUrpSetup3D.cs");

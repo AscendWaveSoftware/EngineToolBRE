@@ -1,6 +1,5 @@
-﻿using System;
+﻿using EngineToolBRE.ViewModels;
 using System.Windows;
-using EngineToolBRE.ViewModels;
 
 namespace EngineToolBRE
 {

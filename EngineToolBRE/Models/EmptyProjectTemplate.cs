@@ -19,6 +19,7 @@ namespace EngineToolBRE.Models
             EnsureDir(Path.Combine(assets, "Scenes"));
             EnsureDir(Path.Combine(assets, "Prefabs"));
             EnsureDir(Path.Combine(assets, "Materials"));
+            //TODO: Weitere Standard-Ordner anlegen
             _log("Standard-Ordner erstellt.");
             return Task.CompletedTask;
         }
