@@ -60,6 +60,8 @@ namespace EngineToolBRE.Services
 
         private static Task LaunchUnityOnceAsync(string _unityExe, string _projectPath, Action<string> _log)
         {
+            var tcs = new TaskCompletionSource<int>();
+
             try
             {
                 var psi = new ProcessStartInfo
@@ -70,16 +72,34 @@ namespace EngineToolBRE.Services
                     CreateNoWindow = true
                 };
 
-                var p = Process.Start(psi);
-                _log($"Unity (Batchmode) gestartet, um Projekt zu initialisieren...");
-                p.WaitForExit();
-                _log($"Unity beendet (ExitCode {p.ExitCode}).");
+                var p = new Process();
+                p.StartInfo = psi;
+                p.EnableRaisingEvents = true;
+
+                p.Exited += (sender, args) =>
+                {
+                    try
+                    {
+                        _log($"Unity beendet (ExitCode {p.ExitCode}).");
+                        p.Dispose();
+                        tcs.TrySetResult(p.ExitCode);
+                    }
+                    catch
+                    {
+                        tcs.TrySetResult(-1);
+                    }
+                };
+
+                _log("Unity (Batchmode) gestartet, um Projekt zu initialisieren...");
+                p.Start();
             }
             catch (Exception ex)
             {
                 _log($"Unity-Start übersprungen/fehlgeschlagen: {ex.Message}");
+                tcs.TrySetResult(-1);
             }
-            return Task.CompletedTask;
+
+            return tcs.Task;
         }
     }
 }

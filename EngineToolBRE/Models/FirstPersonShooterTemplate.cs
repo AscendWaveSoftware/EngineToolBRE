@@ -37,7 +37,7 @@ public class Gun : MonoBehaviour
     [SerializeField] private float damage = 25f;
     [SerializeField] private float range = 100f;
     [SerializeField] private float fireCooldown = 0.12f;
-    [SerializeField] private Transform shootOrigin; // z.B. Kamera
+    [SerializeField] private Transform shootOrigin;
     [SerializeField] private LayerMask hitMask = ~0;
 
     private float _nextFireTime;
@@ -62,7 +62,6 @@ public class Gun : MonoBehaviour
         if (!shootOrigin)
             shootOrigin = transform;
 
-        // Raycast mit voll qualifizierten Typen
         if (UnityEngine.Physics.Raycast(
                 shootOrigin.position,
                 shootOrigin.forward,
@@ -71,14 +70,12 @@ public class Gun : MonoBehaviour
                 hitMask,
                 UnityEngine.QueryTriggerInteraction.Ignore))
         {
-            // Health suchen und Schaden zufügen
             var h = hit.collider.GetComponentInParent<Health>();
             if (h != null)
             {
                 h.ApplyDamage(damage);
             }
 
-            // einfacher Rückstoß, wenn ein Rigidbody vorhanden ist
             var rb = hit.rigidbody;
             if (rb != null)
             {
@@ -88,11 +85,9 @@ public class Gun : MonoBehaviour
                     UnityEngine.ForceMode.Impulse);
             }
 
-            // Trefferlinie im Scene-View
             Debug.DrawLine(shootOrigin.position, hit.point, Color.yellow, 0.2f);
         }
 
-        // Mündungsblitz-Gizmo
         Debug.DrawRay(shootOrigin.position, shootOrigin.forward * 0.6f, Color.cyan, 0.05f);
     }
 }
@@ -131,7 +126,6 @@ public class Health : MonoBehaviour
     private void UpdateVisual()
     {
         if (!colorFeedbackRenderer) return;
-        // Farb-Feedback: grün -> rot je nach HP
         float t = 1f - Mathf.Clamp01(_hp / Mathf.Max(1f, maxHealth));
         var col = Color.Lerp(new Color(0.2f, 0.9f, 0.4f), new Color(0.9f, 0.2f, 0.25f), t);
         if (colorFeedbackRenderer.material && colorFeedbackRenderer.material.HasProperty(""_Color""))
@@ -159,17 +153,14 @@ public static class BRE_AutoFpsSetup
     [InitializeOnLoadMethod]
     private static void Init()
     {
-        // Wird bei jedem erfolgreichen Domain-Reload aufgerufen (sofern nicht im Safe Mode)
         Debug.Log(""[BRE FPS] Init domain reload …"");
 
-        // Wenn Guard + Szene da sind -> nichts mehr tun
         if (File.Exists(FileGuardPath) && File.Exists(ScenePath))
         {
             Debug.Log(""[BRE FPS] Guard + Scene present, auto-setup skipped."");
             return;
         }
 
-        // Ansonsten Setup versuchen
         EnsureInputSystemThenSetup();
     }
 
@@ -178,7 +169,6 @@ public static class BRE_AutoFpsSetup
     {
         Debug.Log(""[BRE FPS] Manual menu trigger (force)."");
 
-        // Guard zurücksetzen, damit wir garantiert laufen
         if (File.Exists(FileGuardPath))
             File.Delete(FileGuardPath);
 
@@ -187,7 +177,6 @@ public static class BRE_AutoFpsSetup
 
     private static void EnsureInputSystemThenSetup()
     {
-        // Wenn Input System schon drin ist, direkt Szene/Player anlegen
         if (ManifestHas(""com.unity.inputsystem""))
         {
             Debug.Log(""[BRE FPS] Input System already present. Creating scene/player …"");
@@ -240,23 +229,19 @@ public static class BRE_AutoFpsSetup
             Directory.CreateDirectory(""Assets/Input"");
             Directory.CreateDirectory(""Assets/Settings"");
 
-            // 1) Input Actions erzeugen (idempotent)
             var actions = CreateInputActionsAsset(""Assets/Input/PlayerInputActions.asset"");
 
-            // 2) Scene erstellen (falls nicht vorhanden)
             if (!File.Exists(ScenePath))
             {
                 Debug.Log(""[BRE FPS] Creating scene + player …"");
 
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-                // Boden
                 var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
                 floor.name = ""Floor"";
                 floor.transform.position = Vector3.zero;
-                floor.transform.localScale = new Vector3(4, 1, 4); // größerer Floor
+                floor.transform.localScale = new Vector3(4, 1, 4);
 
-                // ein paar Boxen als Ziele
                 for (int i = 0; i < 6; i++)
                 {
                     var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -280,10 +265,6 @@ public static class BRE_AutoFpsSetup
                 var rbp = player.AddComponent<Rigidbody>();
                 rbp.constraints = RigidbodyConstraints.FreezeRotation;
 
-                // dein PlayerController
-                //player.AddComponent<PlayerController>();
-
-                // Kamera als Child
                 var camGO = new GameObject(""Main Camera"");
                 camGO.tag = ""MainCamera"";
                 camGO.transform.SetParent(player.transform, false);
@@ -293,10 +274,8 @@ public static class BRE_AutoFpsSetup
                 cam.fieldOfView = 75f;
                 camGO.AddComponent<AudioListener>();
 
-                // Gun an Kamera
                 camGO.AddComponent<Gun>();
 
-                // PlayerInput (Input System)
                 var playerInputType = Type.GetType(""UnityEngine.InputSystem.PlayerInput, Unity.InputSystem"");
                 if (playerInputType != null)
                 {
@@ -311,10 +290,8 @@ public static class BRE_AutoFpsSetup
                     defMap?.SetValue(pi, ""Player"", null);
                 }
 
-                // Player-Startposition
                 player.transform.position = new Vector3(0, 1.1f, -6f);
 
-                // Szene speichern
                 EditorSceneManager.SaveScene(SceneManager.GetActiveScene(), ScenePath);
             }
             else
@@ -322,7 +299,6 @@ public static class BRE_AutoFpsSetup
                 Debug.Log(""[BRE FPS] Scene already exists, skipping creation."");
             }
 
-            // Guard schreiben
             Directory.CreateDirectory(""ProjectSettings"");
             File.WriteAllText(FileGuardPath, ""done"");
 
@@ -335,18 +311,15 @@ public static class BRE_AutoFpsSetup
         }
     }
 
-    // Erzeugt ein InputActionAsset mit: Move (WASD), Look (Mouse), Jump (Space), Fire (LeftMouse)
     private static UnityEngine.Object CreateInputActionsAsset(string path)
     {
         #if ENABLE_INPUT_SYSTEM
-    // Wir erzeugen ein leeres InputActionAsset als normales .asset
     var asset = ScriptableObject.CreateInstance<UnityEngine.InputSystem.InputActionAsset>();
 
     var dir = Path.GetDirectoryName(path);
     if (!Directory.Exists(dir))
         Directory.CreateDirectory(dir);
 
-    // Falls es schon existiert, einfach laden und zurückgeben
     var existing = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path);
     if (existing != null)
         return existing;
@@ -356,7 +329,6 @@ public static class BRE_AutoFpsSetup
     UnityEditor.AssetDatabase.Refresh();
     return asset;
 #else
-    // Fallback, falls das neue Input System nicht aktiv ist
     var obj = ScriptableObject.CreateInstance<ScriptableObject>();
     var dir = Path.GetDirectoryName(path);
     if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);

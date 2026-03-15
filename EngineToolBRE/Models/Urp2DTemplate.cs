@@ -183,7 +183,7 @@ public static class BRE_AutoUrpSetup2D
         if (!File.Exists(rendererPath))
             AssetDatabase.CreateAsset(rendererDataObj, rendererPath);
 
-        // Post-Processing aktivieren (ultra-robust)
+        // Post-Processing aktivieren
         var rdSerialized = new SerializedObject(rendererDataObj);
         bool changed = false;
         var it = rdSerialized.GetIterator();
@@ -346,7 +346,6 @@ public class BRE_SetupWizard : EditorWindow
     {
         EnsureWindow();
 
-        // Vorherigen Running-Step abschließen
         var running = _steps.FirstOrDefault(s => s.CurrentState == StepState.Running);
         if (running != null && !_done)
             running.CurrentState = StepState.Done;

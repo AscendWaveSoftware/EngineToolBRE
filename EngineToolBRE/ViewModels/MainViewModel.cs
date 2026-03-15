@@ -49,10 +49,10 @@ namespace EngineToolBRE.ViewModels
             CreateCommand = new RelayCommand(async () => await CreateAsync(), CanCreate);
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
 
-            // Defaults
+            
             TargetDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
-            // Initialer Scan
+            
             Rescan();
         }
 

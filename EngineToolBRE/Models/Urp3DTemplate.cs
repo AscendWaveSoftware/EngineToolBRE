@@ -40,7 +40,7 @@ namespace EngineToolBRE.Models
             var autoSetup = Path.Combine(editor, "BRE_AutoUrpSetup3D.cs");
             File.WriteAllText(autoSetup, EDITOR_AUTO_SETUP_URP_3D);
 
-            // Setup Wizard
+            
             var wizardPath = Path.Combine(editor, "BRE_SetupWizard.cs");
             if(!File.Exists(wizardPath))
             File.WriteAllText(wizardPath, EDITOR_PROGRESS_WIZARD);
@@ -66,7 +66,7 @@ public static class BRE_AutoUrpSetup3D
 
     private static AddRequest _addUrp;
 
-    // ===== NEW: Manuelle Steuerung über Menü =====
+    // ===== Menü =====
     [MenuItem(""BRE/URP 3D/Run Setup Now"")]
     private static void Menu_RunSetupNow()
     {
@@ -94,7 +94,6 @@ public static class BRE_AutoUrpSetup3D
     [InitializeOnLoadMethod]
     private static void Init()
     {
-        // Beim Laden automatisch versuchen (nur wenn nicht schon erledigt)
         TryRunSetup(force: false);
     }
 
@@ -168,7 +167,6 @@ public static class BRE_AutoUrpSetup3D
 
     private static void CreateUrpAssetsAndScene()
     {
-        // Sicherstellen, dass URP-Typen verfügbar sind
         var urpAssetType = Type.GetType(
             ""UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset, Unity.RenderPipelines.Universal.Runtime"");
         var rendererDataType = Type.GetType(
@@ -207,10 +205,8 @@ public static class BRE_AutoUrpSetup3D
             AssetDatabase.SaveAssets();
         }
 
-        // --- Post-Processing im Renderer aktivieren (falls Feld existiert) ---
         var rdSerialized = new SerializedObject(rendererDataObj);
 
-// 1) Alle Bool-Properties iterieren und jene aktivieren, deren Name nach ""post processing enabled"" aussieht
 bool changed = false;
 var it = rdSerialized.GetIterator();
 bool enterChildren = true;
@@ -220,11 +216,8 @@ while (it.NextVisible(enterChildren))
 
     if (it.propertyType != SerializedPropertyType.Boolean) continue;
 
-    // Property-Namen matchen (lowercase)
     var n = it.name.ToLowerInvariant();
 
-    // typische Varianten: m_PostProcessingEnabled, m_PostProcessEnabled, postProcessEnabled, enablePostProcess, etc.
-    // generische Heuristik: enthält ""post"" UND (""enable"" ODER ""processing"")
     bool looksLikePostToggle =
         (n.Contains(""post"") && (n.Contains(""enable"") || n.Contains(""process"")));
 
@@ -235,15 +228,12 @@ while (it.NextVisible(enterChildren))
     }
 }
 
-// 2) (Optional) PostProcessData zuweisen, falls das Feld existiert und leer ist
-//    Manche URP-Versionen speichern referenzierte Shader/Materialien in einem PostProcessData-Objekt.
 var ppDataProp =
     rdSerialized.FindProperty(""m_PostProcessData"") ??
     rdSerialized.FindProperty(""postProcessData"");
 
 if (ppDataProp != null && ppDataProp.propertyType == SerializedPropertyType.ObjectReference && ppDataProp.objectReferenceValue == null)
 {
-    // Versuche, ein vorhandenes PostProcessData-Asset im Projekt zu finden
     var guids = AssetDatabase.FindAssets(""t:UnityEngine.Rendering.Universal.PostProcessData"");
     if (guids != null && guids.Length > 0)
     {
@@ -255,7 +245,6 @@ if (ppDataProp != null && ppDataProp.propertyType == SerializedPropertyType.Obje
             changed = true;
         }
     }
-    // Wenn keins gefunden wird, lassen wir es leer – der Renderer nutzt ggf. interne Defaults.
 }
 
 if (changed)
@@ -268,8 +257,8 @@ if (changed)
 
         // Renderer ins URP-Asset eintragen
         var so = new SerializedObject(urpAssetObj);
-        var listProp = so.FindProperty(""m_RendererDataList"");     // array<Object>
-        var idxProp  = so.FindProperty(""m_DefaultRendererIndex""); // int
+        var listProp = so.FindProperty(""m_RendererDataList"");
+        var idxProp  = so.FindProperty(""m_DefaultRendererIndex"");
 
         if (listProp != null)
         {
@@ -301,7 +290,7 @@ if (changed)
         BRE_SetupWizard.Progress(0.8f);
 
 
-        // Szene nur einmal anlegen
+        // Szene anlegen
         Directory.CreateDirectory(""Assets/Scenes"");
         var scenePath = ""Assets/Scenes/Main_URP3D.unity"";
         if (!File.Exists(scenePath))
@@ -332,7 +321,6 @@ if (changed)
                 if (ppProp != null && ppProp.CanWrite) ppProp.SetValue(uacd, true, null);
             }
 
-            // --- Optional: Globales Volume anlegen (leer, isGlobal = true) ---
             var volumeGO = new GameObject(""Global Volume"");
             var volumeType = Type.GetType(""UnityEngine.Rendering.Volume, Unity.RenderPipelines.Core.Runtime"");
             if (volumeType != null)
@@ -362,7 +350,7 @@ if (changed)
 
         }
 
-        // Guards setzen (dauerhaft)
+        // Guards setzen
         try
         {
             Directory.CreateDirectory(""ProjectSettings"");
@@ -430,7 +418,6 @@ public class BRE_SetupWizard : EditorWindow
     {
         EnsureWindow();
 
-        // Vorherigen Running-Step abschließen
         var running = _steps.FirstOrDefault(s => s.CurrentState == StepState.Running);
         if (running != null && !_done)
             running.CurrentState = StepState.Done;
